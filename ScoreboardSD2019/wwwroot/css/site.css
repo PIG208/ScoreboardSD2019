@@ -2,7 +2,7 @@
     position: absolute;
     top: 50%;
     margin: auto auto auto 0;
-    border-left: 3px solid black;
+    border-left: 3px solid white;
     padding-left: 0;
 }
 
@@ -16,18 +16,21 @@
     margin: 50px auto 50px -3px;
     border-radius: 5px;
     background-color: white;
-    border: solid 3px black;
+    border: solid 3px white;
     cursor: pointer;
 }
 
     #scoreBars > li > span {
+        color: white;
         position: relative;
         left: calc(100% + 30px);
         top: 12px;
         font-family: 'Microsoft YaHei UI';
         font-size: 20px;
+        word-break:keep-all;
     }
 body {
+    overflow: hidden;
     background-color: black;
 }
 .body {

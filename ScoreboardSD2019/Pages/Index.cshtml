@@ -5,6 +5,7 @@
 }
 <div id="blank"></div>
 <ol id="scoreBars"><li style="display:none !important"></li></ol>
+<div id="trash" style="display:none!important"></div>
 @Html.AntiForgeryToken()
 <div id="modal-add" class="modal fade">
     <div class="modal-dialog modal-dialog-centered">
@@ -87,352 +88,314 @@
 @section Scripts
 {
     <script>
-    //类型定义
-    class ScoreBar {
-        constructor(name, score, targetBefore) {
-            console.log("created " + name);
-            this.name = name;
-            this.score = score;
-            //创建ScoreBar对象对应的<li>元素
-            this.target = $("<li></li>").css({ "display": "none" });
-            //将新建的<li>加入scoreBars中
-            if (targetBefore == undefined) targetBefore = $("#scoreBars > li").last();
-            targetBefore.after(this.target);
-        }
+        //类型定义
+        class ScoreBar {
+            constructor(name, score, targetBefore) {
+                this.name = name;
+                this.score = score;
+                //创建ScoreBar对象对应的<li>元素
+                this.target = $("<li></li>").css({ "display": "none" });
+                //this.target = $("<div></div>").addClass("progress").append($("<div></div>").addClass("progress-bar").css({"width":"10%"})).css({ "display": "none" });
+                //将新建的<li>加入scoreBars中
+                if (targetBefore == undefined) targetBefore = $("#scoreBars > li").last();
+                targetBefore.after(this.target);
+            }
 
-        /**
-            * 显示柱形
-            * */
-        showBar(callback) {
-            this.target.fadeIn();
-            //显示后需要运行垂直自适应fitBars
-            fitBars($("#scoreBars"), () => { });
-            //分数自动增长
-            this.growTo(800 * (this.score / 100), true, 3200 * (this.score / 100), callback);
-        }
+            /**
+                * 显示柱形
+                * */
+            showBar(callback) {
+                this.target.fadeIn();
+                //显示后需要运行垂直自适应fitBars
+                fitBars($("#scoreBars"), () => { });
+                //分数自动增长
+                this.growTo(800 * (this.score / 100), true, 32 * (this.score / 100), callback);
+            }
 
-        destroy(callback) {
-            this.growTo(2000, false, 350, () => {
-                this.target.animate({ "margin-left": 2000 }, 1000, "swing", () => {
-                    this.target.fadeOut(200, () => {
-                        fitBars($("#scoreBars"), callback);
+            destroy(callback) {
+                this.growTo(2000, false, 350, () => {
+                    this.target.animate({ "margin-left": 2000 }, 1000, "swing", () => {
+                        this.target.fadeOut(200, () => {
+                            fitBars($("#scoreBars"), callback);
+                        });
                     });
                 });
-            });
+            }
+
+            /*
+                * 使得柱形增长到指定宽度
+                * @@param width 柱形最终宽度
+                */
+            growTo(width, name, duration, callback) {
+                this.target.animate({ "width": width }, duration, "swing", () => {
+                    if (name) {
+                        var nameBar = $("<span></span>").css({ "display": "none" }).text(this.name);
+                        this.target.append(nameBar.fadeIn(250, callback));
+                    }
+                    else
+                        callback();
+                });
+            };
+
+            toString() {
+                return this.name + ", " + this.score + " [" + this.target.index() + "]";
+            }
         }
 
-        /*
-            * 使得柱形增长到指定宽度
-            * @@param width 柱形最终宽度
-            */
-        growTo(width, name, duration, callback) {
-            this.target.animate({ "width": width }, duration, "swing", () => {
-                if (name) {
-                    var nameBar = $("<span>" + this.name + "</span>");
-                    this.target.append(nameBar.fadeIn(200, callback));
-                }
-                else
-                    callback();
+        //初始化
+        var bars = new Array();
+        var pointer = 0;
+        var barDisplay = new Array();
+        const roundConst = [5];
+        var isInserting = false;
+        var $temp = $("<div></div>").html("@Newtonsoft.Json.JsonConvert.SerializeObject(Model.Singers)");
+        var singers = $.parseJSON($temp.text());
+        $(document).ready(() => {
+            console.log("@ViewData["error"]");
+            //分数条垂直居中
+            fitBars($("#scoreBars"), () => {
+                //回调隐藏遮罩
+                $("#blank").fadeOut();
             });
+        });
+
+        //li 柱形交换位置(indexA,indexB从1开始)
+        function swap(indexA, indexB, callback) {
+            //indexB必须大于indexA
+            if (indexA > indexB) {
+                var temp = indexA;
+                indexA = indexB;
+                indexB = temp;
+            }
+            if (indexA == indexB || indexA >= $("#scoreBars > li").length || indexB >= $("#scoreBars > li").length) {
+                callback(indexA);
+                return "failed";
+            }
+            //计算调换位置需要的距离
+            var distance = (parseFloat($("#scoreBars > li").css("height")) + parseFloat($("#scoreBars > li").css("margin-top")) + parseFloat($("#scoreBars > li").css("border-width")) * 2) * (indexA - indexB);
+            //通过更改top移动柱形
+            bars[indexA - 1].target.stop(true, true).animate({ "top": -distance + "px" }, { easing: "swing", queue: false });
+            bars[indexB - 1].target.stop(true, true).animate({ "top": distance + "px" }, "swing", () => {
+                //柱形移动到目标地点时更改<li>元素在<ol>中的位置，同时将top重置为0px
+                $("#scoreBars > li").eq(indexB).after(bars[indexA - 1].target.css({ "top": "0px" }));
+                $("#scoreBars > li").eq(indexA).before(bars[indexB - 1].target.css({ "top": "0px" }));
+                //将bars数组中的ScoreBar实例调换位置
+                var temp = bars[indexA - 1];
+                bars[indexA - 1] = bars[indexB - 1];
+                bars[indexB - 1] = temp;
+                //调用回调
+                callback(indexA - 1);
+            });
+            return 1;
+        }
+        //表单验证
+        var scoreCheck = function () {
+            var score = parseFloat($("#score").val());
+            if (!isNaN(score))
+                $("#score").val(score);
+            if (isNaN(score) || score > 100 || score < 0) {
+                $("#score").css({ "border-color": "#ff0000" });
+                return false;
+            }
+            else {
+                $("#score").css({ "border-color": "#d9d9d9" });
+                return true;
+            }
+        };
+        var IDCheck = function () {
+            var ID = parseInt($("#ID").val());
+            if (!isNaN(ID))
+                $("#ID").val(ID);
+            if (isNaN(ID) || ID > singers.length || ID < 1 || singers[ID - 1].Name == null) {
+                $("#ID").next().children().eq(0).text("名字");
+                $("#ID").css({ "border-color": "#ff0000" });
+                return false;
+            }
+            else {
+                $("#ID").css({ "border-color": "#d9d9d9" });
+                $("#ID").next().children().eq(0).text(singers[ID - 1].Name);
+                return true;
+            }
         };
 
-        toString() {
-            return this.name + ", " + this.score + " [" + this.target.index() + "]";
-        }
-    }
-
-    //初始化
-    var bars = new Array();
-    var pointer = 0;
-    var barDisplay = new Array();
-    const roundConst = [0, 6, 4];
-    var isInserting = false;
-    var $temp = $("<div></div>").html("@Newtonsoft.Json.JsonConvert.SerializeObject(Model.Singers)");
-    var singers = $.parseJSON($temp.text());
-    console.log(singers);
-    $(document).ready(() => {
-        console.log("@ViewData["error"]");
-        //分数条垂直居中
-        fitBars($("#scoreBars"), () => {
-            //回调隐藏遮罩
-            $("#blank").fadeOut();
+        $("#ID").keyup(e => {
+            switch (e.keyCode) {
+                //上
+                case 38:
+                case 104:
+                    var ID = parseInt($("#ID").val());
+                    if (!isNaN(ID))
+                        $("#ID").val((ID + 1 < singers.length)?(ID + 1):1);
+                    break;
+                //下
+                case 40:
+                case 98:
+                    var ID = parseInt($("#ID").val());
+                    if (!isNaN(ID))
+                        $("#ID").val((ID - 1 > 0) ? (ID - 1) : (singers.length));
+                    break;
+            }
+            IDCheck();
         });
-    });
 
-    //li 柱形交换位置(indexA,indexB从1开始)
-    function swap(indexA, indexB, callback) {
-        //indexB必须大于indexA
-        if (indexA > indexB) {
-            var temp = indexA;
-            indexA = indexB;
-            indexB = temp;
-        }
-        if (indexA == indexB || indexA >= $("#scoreBars > li").length || indexB >= $("#scoreBars > li").length) {
-            callback(indexA);
-            return "failed";
-        }
-        //计算调换位置需要的距离
-        var distance = (parseFloat($("#scoreBars > li").css("height")) + parseFloat($("#scoreBars > li").css("margin-top")) + parseFloat($("#scoreBars > li").css("border-width")) * 2) * (indexA - indexB);
-        //通过更改top移动柱形
-        console.log(indexA - 1, bars[indexA - 1]);
-        bars[indexA - 1].target.stop(true, true).animate({ "top": -distance + "px" }, { easing: "swing", queue: false });
-        bars[indexB - 1].target.stop(true, true).animate({ "top": distance + "px" }, "swing", () => {
-            //柱形移动到目标地点时更改<li>元素在<ol>中的位置，同时将top重置为0px
-            $("#scoreBars > li").eq(indexB).after(bars[indexA - 1].target.css({ "top": "0px" }));
-            $("#scoreBars > li").eq(indexA).before(bars[indexB - 1].target.css({ "top": "0px" }));
-            //将bars数组中的ScoreBar实例调换位置
-            var temp = bars[indexA - 1];
-            bars[indexA - 1] = bars[indexB - 1];
-            bars[indexB - 1] = temp;
-            //调用回调
-            callback(indexA - 1);
-        });
-        return 1;
-    }
-    //表单验证
-    var scoreCheck = function () {
-        var score = parseFloat($("#score").val());
-        if (!isNaN(score))
-            $("#score").val(score);
-        if (isNaN(score) || score > 100 || score < 0) {
-            $("#score").css({ "border-color": "#ff0000" });
-            return false;
-        }
-        else {
-            $("#score").css({ "border-color": "#d9d9d9" });
-            return true;
-        }
-    };
-    var IDCheck = function () {
-        var ID = parseInt($("#ID").val());
-        if (!isNaN(ID))
-            $("#ID").val(ID);
-        if (isNaN(ID) || ID > singers.length || ID < 1 || singers[ID - 1]["Name"] == null) {
-            $("#ID").next().children().eq(0).text("名字");
-            $("#ID").css({ "border-color": "#ff0000" });
-            return false;
-        }
-        else {
-            $("#ID").css({ "border-color": "#d9d9d9" });
-            $("#ID").next().children().eq(0).text(singers[ID - 1]["Name"]);
-            return true;
-        }
-    };
+        $("#score").change(scoreCheck);
 
-    $("#ID").keyup(e => {
-        switch (e.keyCode) {
-            //上
-            case 38:
-            case 104:
-                var ID = parseInt($("#ID").val());
-                if (!isNaN(ID))
-                    $("#ID").val((ID + 1 < singers.length)?(ID + 1):1);
-                break;
-            //下
-            case 40:
-            case 98:
-                var ID = parseInt($("#ID").val());
-                if (!isNaN(ID))
-                    $("#ID").val((ID - 1 > 0) ? (ID - 1) : (singers.length));
-                break;
-        }
-        IDCheck();
-    });
-
-    $("#score").change(scoreCheck);
-
-    $("#submit").click(function () {
-        $("#form").submit();
-    });
-    $("#form input").click(e => {
-        if (e.keyCode == 32)
+        $("#submit").click(function () {
             $("#form").submit();
-    });
-    //ajax 存储表单
-    $("#form").submit(e => {
-        e.preventDefault();
-        if (true || $("#form").data("isSubmitting") == null || !$("#form").data("isSubmitting")) {
-            //表单检验
-            if (!IDCheck() || !scoreCheck()) return;
-            var formData = new FormData(document.getElementById("form"));
-            $.post({
-                url: "?handler=AlterSinger",
-                data: formData,
-                contentType: false,
-                processData: false,
+        });
+        $("#form input").click(e => {
+            if (e.keyCode == 32)
+                $("#form").submit();
+        });
+        //ajax 存储表单
+        $("#form").submit(e => {
+            e.preventDefault();
+            if (true || $("#form").data("isSubmitting") == null || !$("#form").data("isSubmitting")) {
+                //表单检验
+                if (!IDCheck() || !scoreCheck()) return;
+                var formData = new FormData(document.getElementById("form"));
+                $.post({
+                    url: "?handler=AlterSinger",
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    dataType: "json",
+                    beforeSend: (xhr) => {
+                        xhr.setRequestHeader("RequestVerificationToken",
+                            $("input:hidden[name=__RequestVerificationToken]").val());
+                    },
+                    success: (data) => {
+                        if (data == 1) {
+                            $("#form").find("input[name='StringScore']").val("");
+                            $("#form").find("select[name='Round']").children().eq(0).attr({ "selected": "selected" });
+                            $("#btn-refresh").click();
+                            console.log("success");
+                        }
+                        else {
+                            console.log("error:",data);
+                            alert("更新失败");
+                        }
+                    },
+                    complete: () => {
+                        $("#form").data("isSubmitting", false);
+                        console.log("complete");
+                    }
+                });
+            }
+        });
+        $("#btn-refresh").click(function (){
+            $.get({
+                url: "?handler=Singers",
                 dataType: "json",
                 beforeSend: (xhr) => {
                     xhr.setRequestHeader("RequestVerificationToken",
                         $("input:hidden[name=__RequestVerificationToken]").val());
                 },
                 success: (data) => {
-                    if (data == 1) {
-                        $("#form").find("input[name='StringScore']").val("");
-                        $("#form").find("select[name='Round']").children().eq(0).attr({ "selected": "selected" });
-                        $("#btn-refresh").click();
-                        console.log("success");
+                    if (data.length > 0) {
+                        $("#table-singers > tbody > tr").remove();
+                        singers = $.parseJSON(data);
+                        singers.forEach(singer => {
+                            $(`<th scope='row'>${singer.ID}</th>` +
+                                `<td>${singer.Name}</td>` +
+                                `<td>${singer.GroupId}</td>` +
+                                `<td>${singer.Scores[0]}</td>` +
+                                `<td>${singer.Scores[1]}</td>`).appendTo($("<tr></tr>").appendTo("#table-singers"));
+                        });
                     }
-                    else {
+                    else
                         console.log("error:",data);
-                        alert("更新失败");
-                    }
                 },
                 complete: () => {
                     $("#form").data("isSubmitting", false);
-                    console.log("complete");
                 }
             });
-        }
-    });
-    $("#btn-refresh").click(function (){
-        $.get({
-            url: "?handler=Singers",
-            dataType: "json",
-            beforeSend: (xhr) => {
-                xhr.setRequestHeader("RequestVerificationToken",
-                    $("input:hidden[name=__RequestVerificationToken]").val());
-            },
-            success: (data) => {
-                if (data.length > 0) {
-                    $("#table-singers > tbody > tr").remove();
-                    singers = $.parseJSON(data);
-                    singers.forEach(singer => {
-                        $(`<th scope='row'>${singer.ID}</th>` +
-                            `<td>${singer.Name}</td>` +
-                            `<td>${singer.GroupId}</td>` +
-                            `<td>${singer.Scores[0]}</td>` +
-                            `<td>${singer.Scores[1]}</td>`).appendTo($("<tr></tr>").appendTo("#table-singers"));
-                    });
-                }
-                else
-                    console.log("error:",data);
-            },
-            complete: () => {
-                $("#form").data("isSubmitting", false);
-            }
         });
-    });
 
-    //ol ScoreBars滑动居中
-    function fitBars(target, callback) {
-        var top = (window.innerHeight - parseFloat(target.css("height"))) / 2;
-        if (top != parseFloat(target.css("height")))
-            target.animate({
-                "top": top
-            }, "normal", callback);
-    }
+        //ol ScoreBars滑动居中
+        function fitBars(target, callback) {
+            var top = (window.innerHeight - parseFloat(target.css("height"))) / 2;
+            if (top != parseFloat(target.css("height")))
+                target.animate({
+                    "top": top
+                }, "normal", callback);
+        }
 
-    //获取下一个歌手
-    function getNextSinger(round) {
-        var singer = null;
-        if (pointer > singers.length || singers[pointer] == null) {
-            if (singers[0] != 0) {
+        //获取下一个歌手
+        function getNextSinger() {
+            if (pointer + 1 > singers.length)
                 pointer = 0;
-                singer = singers[pointer];
-            }
+            return singers[pointer++];
         }
-        else {
-            if (!singer[`rd${round}_time_stamp`] != "") {
-                pointer++;
-                singer = getNextSinger(round);
-            }
-            else {
-                singer = singers[pointer++];
-            }
-        }
-        return singer;
-    }
 
-    function insertSinger(singer, round) {
-        if (isInserting) return;
-        isInserting = true;
-        lastIndex = (barDisplay.length < roundConst[round]) ? barDisplay.length : (roundConst[round] - 1);
-        bars[lastIndex] = new ScoreBar(singer["name"], parseFloat(singer[`rd${round}_score`]));
-        //显示占位分数柱
-        bars[lastIndex].showBar(() => {
-            //将循环的起始点设定为barDisplay的长度，即最后一行分数柱之后
-            var i = lastIndex;
-            //使用递归回调将分数柱插入
-            var cb = n => {
-                if (barDisplay[n - 1] != null && parseFloat(barDisplay[n - 1][`rd${round}_score`]) < parseFloat(singer[`rd${round}_score`]))
-                    swap(n, n + 1, cb);
-                else {
-                    var i = lastIndex;
-                    var pos = n;
-                    for (; i > pos; i--) {
-                        barDisplay[i] = barDisplay[i - 1];
-                    }
-                    //将singer插入barDisplay的正确位置
-                    barDisplay[pos] = singer;
-                    var redestroy = (index) => {
-                        if (bars[index] != null)
-                            bars[index].destroy(index => {
-                                bars[index] = null;
-                                barDisplay[index] = null;
-                                if (index > roundConst)
-                                    redestroy(index - 1);
-                                else
-                                    isInserting = false;
-                            });
-                        else
-                            redestroy(index - 1);
-                    };
-                    if (barDisplay.length >= roundConst[round])
-                        bars[barDisplay.length - 1].destroy(() => {
-                            bars[barDisplay.length - 1] = null;
-                            barDisplay[barDisplay.length - 1] = null;
-                            isInserting = false;
-                        });
-                    else
-                        isInserting = false;
-                }
-            };
-            cb(i);
-        });
-    }
-
-    var roundkey = 0;
-    //测试函数 Q键生成分数柱
-    $(window).keydown(e => {
-        switch (e.keyCode) {
-            //Q 自动出四个选手的分数
-            case 81:
-                if (roundkey == 0)
-                    roundkey = 1;
-                $("title").val("回合一");
-                break;
-            //W 使用第二轮视图并且出分
-            case 87:
-                if (roundkey != 0)
-                    refresh(roundkey, () => {
-                        if (singers.length > barDisplay.length || singers.length == roundConst[roundkey]) {
-                            insertSinger(getNextSinger(roundkey), roundkey);
+        function insertSinger(times) {
+            console.log(pointer);
+            if (isInserting) return;
+            //if (singer == null || singer == undefined) return;
+            if (barDisplay.length + 1 >= roundConst[0]) return;
+            var singer = getNextSinger();
+            isInserting = true;
+            lastIndex = (barDisplay.length < roundConst[0]) ? barDisplay.length : (roundConst[0] - 1);
+            bars[lastIndex] = new ScoreBar(singer.Name, singer.Scores[0]);
+            //显示占位分数柱
+            bars[lastIndex].showBar(() => {
+                //将循环的起始点设定为barDisplay的长度，即最后一行分数柱之后
+                var i = lastIndex;
+                //使用递归回调将分数柱插入
+                var cb = n => {
+                    if (barDisplay[n - 1] != null && barDisplay[n - 1].Scores[0] < singer.Scores[0])
+                        swap(n, n + 1, cb);
+                    else {
+                        var i = lastIndex;
+                        var pos = n;
+                        for (; i > pos; i--) {
+                            barDisplay[i] = barDisplay[i - 1];
                         }
-                    });
-                break;
-            //空格自动填充
-            case 32:
-                $("#modal-scores").modal("toggle");
-                break;
-            //添加歌手
-            case 27:
-                $("#modal-add").modal("toggle");
-                break;
+                        //将singer插入barDisplay的正确位置
+                        barDisplay[pos] = singer;
+                        isInserting = false;
+                        if (--times <= 0)
+                            return;
+                        else
+                            insertSinger(times);
+                    }
+                };
+                cb(i);
+            });
         }
-    });
 
-    //测试函数 名字生成器
-    const LAST_NAMES = "赵钱孙李周吴郑王冯陈楮卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳酆鲍史唐费廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于时傅皮卞齐康伍余元卜顾孟平黄和穆萧尹姚邵湛汪祁毛禹狄米贝明臧计伏成戴谈宋茅庞";
-    const FIRST_NAMES = "孔乙己喝过半碗酒涨红的脸色渐渐复了原旁人便又问道乙己你当真认识字么孔乙己看着问他的人显出不屑置辩的神气他们便接着说道你怎的连半个秀才也捞不到呢孔乙己立刻显出颓唐不安模样脸上笼上了一层灰色嘴里说些话这回可是全是之乎者也之类一些不懂了在这时候众人也都哄笑起来店内外充满了快活的空气";
-    function genName() {
-        return LAST_NAMES.substr(Math.random() * LAST_NAMES.length, 1) + FIRST_NAMES.substr(Math.random() * FIRST_NAMES.length, 1) + FIRST_NAMES.substr(Math.random() * FIRST_NAMES.length, 1);
-    }
-
-    //测试函数 控制宽度增长及上限
-    function increase(width) {
-        width *= 2.5;
-        if (width > window.innerWidth * 0.8) width = 100;
-        return width;
-    }
+        var roundkey = 0;
+        //测试函数 Q键生成分数柱
+        $(window).keydown(e => {
+            switch (e.keyCode) {
+                case 83:
+                    if (!isInserting) {
+                        bars.forEach( bar => {
+                            bar.target.fadeOut(100, function () {
+                                $(this).appendTo("#trash");
+                            });
+                        });
+                        bars = new Array();
+                        //pointer = 0;
+                        barDisplay = new Array();
+                    }
+                    break;
+                //W 使用第二轮视图并且出分
+                case 87:
+                    console.log(barDisplay);
+                    if (singers.length > barDisplay.length || singers.length == roundConst[0]) {
+                        insertSinger(4);
+                    }
+                    break;
+                //空格自动填充
+                case 32:
+                    $("#modal-scores").modal("toggle");
+                    break;
+                //添加歌手
+                case 27:
+                    $("#modal-add").modal("toggle");
+                    break;
+            }
+        });
     </script>
 }
