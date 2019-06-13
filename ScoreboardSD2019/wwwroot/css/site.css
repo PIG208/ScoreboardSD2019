@@ -1,0 +1,56 @@
+#scoreBars {
+    position: absolute;
+    top: 50%;
+    margin: auto auto auto 0;
+    border-left: 3px solid black;
+    padding-left: 0;
+}
+
+#scoreBars > li {
+    display: block;
+    position: relative;
+    /*transition: top 1s;*/
+    height: 55px;
+    width: 25px;
+    min-width: 60px;
+    margin: 50px auto 50px -3px;
+    border-radius: 5px;
+    background-color: white;
+    border: solid 3px black;
+    cursor: pointer;
+}
+
+    #scoreBars > li > span {
+        position: relative;
+        left: calc(100% + 30px);
+        top: 12px;
+        font-family: 'Microsoft YaHei UI';
+        font-size: 20px;
+    }
+body {
+    background-color: black;
+}
+.body {
+    height: 100vh;
+    padding-bottom: 11vh;
+}
+
+hr {
+    border-top-color: white;
+}
+
+footer {
+    color: white;
+}
+
+.footer {
+    margin-top: -11vh;
+}
+@media screen and (max-width:464px) {
+    .footer{
+        margin-top: -13vh;
+    }
+    .body {
+        padding-bottom: 13vh;
+    }
+}
