@@ -46,20 +46,20 @@
     <div class="card-body">
         <div id="progress-bar-container" class="progress-wrapper-rotate">
             <div class="progress progress-rotate" data-label>
-                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary">第一轮</div>
-                <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning">第二轮</div>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary">第二轮</div>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning">第一轮</div>
             </div>
             <div class="progress progress-rotate" data-label>
-                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary">第一轮</div>
-                <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning">第二轮</div>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary">第二轮</div>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning">第一轮</div>
             </div>
             <div class="progress progress-rotate" data-label>
-                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary">第一轮</div>
-                <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning">第二轮</div>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary">第二轮</div>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning">第一轮</div>
             </div>
             <div class="progress progress-rotate" data-label>
-                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary">第一轮</div>
-                <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning">第二轮</div>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary">第二轮</div>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning">第一轮</div>
             </div>
         </div>
     </div>
@@ -228,7 +228,7 @@
                 //显示后需要运行垂直自适应fitBars
                 fitBars($("#scoreBars"), () => { });
                 //分数自动增长
-                this.growTo(800 * (this.score / 100), true, 32 * (this.score / 100), callback);
+                this.growTo(800 * (this.score / 100), true, 50 * (this.score), callback);
             }
 
             destroy(callback) {
@@ -296,8 +296,8 @@
             //计算调换位置需要的距离
             var distance = (parseFloat($("#scoreBars > li").css("height")) + parseFloat($("#scoreBars > li").css("margin-top")) + parseFloat($("#scoreBars > li").css("border-width")) * 2) * (indexA - indexB);
             //通过更改top移动柱形
-            bars[indexA - 1].target.stop(true, true).animate({ "top": -distance + "px" }, { easing: "swing", queue: false });
-            bars[indexB - 1].target.stop(true, true).animate({ "top": distance + "px" }, "swing", () => {
+            bars[indexA - 1].target.stop(true, true).animate({ "top": -distance + "px" }, { easing: "swing", queue: false, duration: 500 });
+            bars[indexB - 1].target.stop(true, true).animate({ "top": distance + "px" }, 500,"swing", () => {
                 //柱形移动到目标地点时更改<li>元素在<ol>中的位置，同时将top重置为0px
                 $("#scoreBars > li").eq(indexB).after(bars[indexA - 1].target.css({ "top": "0px" }));
                 $("#scoreBars > li").eq(indexA).before(bars[indexB - 1].target.css({ "top": "0px" }));
@@ -363,6 +363,7 @@
                 }
             var singer = null;
             singers.forEach(ele => {
+                console.log(ele.ID, ID, ele.Name);
                 if (ele.ID == ID)
                     singer = ele;
             });
@@ -409,6 +410,9 @@
                         else {
                             alert("更新失败");
                         }
+                    },
+                    error: (error) => {
+                        console.log("发生错误" + error);
                     },
                     complete: () => {
                         $("#form").data("isSubmitting", false);
@@ -521,9 +525,9 @@
             return groupedSingers;
         }
         var roundkey = 0;
+        var ishid = false;
         //测试函数 Q键生成分数柱
         $(window).keydown(e => {
-            console.log("keycode:", e.keyCode);
             switch (e.keyCode) {
                 //Q
                 case 81:
@@ -535,16 +539,18 @@
                 //D
                 case 68:
                     sortAndDivideSingers(singers);
-                    $("#card-ranking").fadeIn(200);
+                    //$("#card-ranking").fadeIn(200);
                     $("#vertical-score-bars").fadeIn(200, function () {
+                        var aa = 0;
                         var curSingers = new Array();
+                        if (groupPointer == 4)
+                            groupPointer = 0;
                         for (var i = 0; i < 4; i++) {
-                            console.log("grouppointer", groupPointer);
                             $(".progress").eq(i).attr("data-label", groupedSingers[groupPointer][i].Name);
                             var score = groupedSingers[groupPointer][i].Scores[0];
                             $(".progress").eq(i).find(".bg-primary").eq(0).data("i", i).animate({ "width": score / 2 + "%" }, score * 50 + 200, function () {
                                 var i = $(this).data("i");
-                                var score = groupedSingers[groupPointer][i].Scores[1];
+                                var score = groupedSingers[groupPointer-1][i].Scores[1];
                                 $(this).next().animate({ "width": score / 2 + "%" }, score * 50 + 200);
                             });
                             curSingers.push(groupedSingers[groupPointer][i]);
@@ -602,7 +608,14 @@
                     break;
                 //空格自动填充
                 case 32:
-                    $("#modal-scores").modal("toggle");
+                    if (ishid) {
+                        $("#card-ranking").fadeIn(400,()=>ishid = false);
+                        
+                    }
+                    else {
+                        $("#card-ranking").fadeOut(400,()=>ishid = true);
+                    }
+                    //$("#modal-scores").modal("toggle");
                     break;
                 //添加歌手
                 case 27:
