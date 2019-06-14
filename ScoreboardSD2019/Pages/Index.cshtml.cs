@@ -25,7 +25,7 @@ namespace ScoreboardSD2019.Pages
             MySqlIntegration sqlInteg = new MySqlIntegration(Configuration.GetConnectionString("sql"));
             try
             {
-                sqlInteg.MySqlSelect("singers", new[] { "*" });
+                sqlInteg.MySqlSelect("singers", new[] { "*" }, "1=1 ORDER BY sequence");
             }
             catch (MySqlException ex)
             {
@@ -53,8 +53,8 @@ namespace ScoreboardSD2019.Pages
             MySqlIntegration sqlInteg = new MySqlIntegration(Configuration.GetConnectionString("sql"));
             try
             {
-                sqlInteg.MySqlSelect("singers", new[] { "*" });
-                if(sqlInteg.IntegratedResult.Count > 0)
+                sqlInteg.MySqlSelect("singers", new[] { "*" }, "1=1 ORDER BY sequence");
+                if (sqlInteg.IntegratedResult.Count > 0)
                 {
                     Singers = new List<Singer>();
                     sqlInteg.IntegratedResult.ForEach(element => {
@@ -80,12 +80,12 @@ namespace ScoreboardSD2019.Pages
             return new JsonResult("[]");
 
         }
-        public ActionResult OnPostAlterSinger(string StringID, string StringScore, int Round)
+        public ActionResult OnPostAlterSinger(string StringID, string StringScore, string StringSequence, int Round, int GroupId)
         {
             //验证
-            if ((StringID != null && int.TryParse(StringID, out int ID)) && (StringScore != null && float.TryParse(StringScore, out float Score)) && Round != -1)
+            if ((StringID != null && int.TryParse(StringID, out int ID)) && (StringScore != null && float.TryParse(StringScore, out float Score)) && (StringSequence != null && int.TryParse(StringSequence, out int Sequence)) && Round != -1 && GroupId > 0 && GroupId <= 4)
             {
-                string[] keys = { string.Format("score{0}", Round.ToString()) };
+                string[] keys = { "sequence", string.Format("score{0}", Round.ToString()), "group_id" };
                 string specifier = string.Format("`ID`={0}", ID);
                 MySqlIntegration sqlInteg = new MySqlIntegration(Configuration.GetConnectionString("sql"));
                 try
@@ -100,7 +100,7 @@ namespace ScoreboardSD2019.Pages
                 {
                     try
                     {
-                        sqlInteg.MySqlUpdate("singers", keys, specifier, Score.ToString());
+                        sqlInteg.MySqlUpdate("singers", keys, specifier, Sequence, Score.ToString(), GroupId);
                     }
                     catch (MySqlException ex)
                     {

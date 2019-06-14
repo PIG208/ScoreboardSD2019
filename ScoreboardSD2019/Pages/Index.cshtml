@@ -3,8 +3,108 @@
 @{
     ViewData["Title"] = "Home page";
 }
+<style>
+    .progress-wrapper-rotate {
+        margin-right:auto;
+        margin-left:auto;
+        position: relative;
+        transform: rotate(-90deg);
+        border-left:solid 2px white;
+    }
+
+    .progress-rotate {
+        width: 60vh;
+        height: 3.5rem;
+        position: relative;
+        border-bottom-left-radius: 0;
+        border-top-left-radius: 0;
+        margin: 4rem 0 4rem 0;
+        overflow: initial;
+    }
+    .progress-rotate:after {    
+        content: attr(data-label);
+        position: absolute;
+        transform: translate(-50%,50%) rotate(84deg);
+        left: -5%;
+        font-size: 1.2rem;
+        color: #ffffff;
+    }
+    .round-item {
+        display: inline-block;
+        min-width: 30vw;
+        min-height: 50vh;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    .progress-bar {
+        transition: none;
+    }
+</style>
 <div id="blank"></div>
 <ol id="scoreBars"><li style="display:none !important"></li></ol>
+<div id="vertical-score-bars" class="card round-item float-left bg-transparent" style="display:none">
+    <div class="card-body">
+        <div id="progress-bar-container" class="progress-wrapper-rotate">
+            <div class="progress progress-rotate" data-label>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary">第一轮</div>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning">第二轮</div>
+            </div>
+            <div class="progress progress-rotate" data-label>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary">第一轮</div>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning">第二轮</div>
+            </div>
+            <div class="progress progress-rotate" data-label>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary">第一轮</div>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning">第二轮</div>
+            </div>
+            <div class="progress progress-rotate" data-label>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary">第一轮</div>
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning">第二轮</div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="card-ranking" class="card round-item float-right" style="display:none">
+    <div class="card-body">
+        <div class="card-title"><h5 class="card-text">排名</h5></div>
+        <table id="ranking" class="table table-striped">
+            <thead>
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">姓名</th>
+                    <th scope="col">#</th>
+                    <th scope="col">姓名</th>
+                </tr>
+            </thead>
+            <tbody id="ranking-body">
+                <tr>
+                    <th scope="col">1</th>
+                    <td scope="col">xxxxx</td>
+                    <th scope="col">9</th>
+                    <td scope="col">xxxxx</td>
+                </tr>
+                <tr>
+                    <th scope="col">2</th>
+                    <td scope="col">xxxxx</td>
+                    <th scope="col">10</th>
+                    <td scope="col">xxxxx</td>
+                </tr>
+                <tr>
+                    <th scope="col">3</th>
+                    <td scope="col">xxxxx</td>
+                    <th scope="col">11</th>
+                    <td scope="col">xxxxx</td>
+                </tr>
+                <tr>
+                    <th scope="col">4</th>
+                    <td scope="col">xxxxx</td>
+                    <th scope="col">12</th>
+                    <td scope="col">xxxxx</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 <div id="trash" style="display:none!important"></div>
 @Html.AntiForgeryToken()
 <div id="modal-add" class="modal fade">
@@ -34,9 +134,25 @@
                     </div>
                     <br />
                     <div class="input-group">
-                        <select name="Round" class="form-control">
+                        <div class="input-group-prepend">
+                            <div class="input-group-text">次序</div>
+                        </div>
+                        <input type="text" id="sequence" name="StringSequence" class="form-control" placeholder="次序" />
+                    </div>
+                    <br />
+                    <div class="input-group">
+                        <select id="round" name="Round" class="form-control">
                             <option value="1">第一轮</option>
                             <option value="2">第二轮</option>
+                        </select>
+                    </div>
+                    <br />
+                    <div class="input-group float-right">
+                        <select id="groupId" name="GroupId" class="form-control">
+                            <option value="1">第一组</option>
+                            <option value="2">第二组</option>
+                            <option value="3">第三组</option>
+                            <option value="4">第四组</option>
                         </select>
                     </div>
                 </form>
@@ -60,16 +176,18 @@
                     <thead>
                         <tr>
                             <th scope="col">#</th>
+                            <th scope="col">Sequence</th>
                             <th scope="col">Name</th>
                             <th scope="col">Group Id</th>
                             <th scope="col">Score 1</th>
                             <th scope="col">Score 2</th>
                         </tr>
                     </thead>
-                    @foreach(Singer singer in Model.Singers)
+                    @foreach (Singer singer in Model.Singers)
                     {
                     <tr>
                         <th scope="row">@singer.ID</th>
+                        <td>@singer.Sequence</td>
                         <td>@singer.Name</td>
                         <td>@singer.GroupId</td>
                         <td>@singer.Scores[0]</td>
@@ -90,14 +208,15 @@
     <script>
         //类型定义
         class ScoreBar {
-            constructor(name, score, targetBefore) {
+            constructor(name, score, sequence) {
                 this.name = name;
                 this.score = score;
+                this.sequence = sequence;
                 //创建ScoreBar对象对应的<li>元素
                 this.target = $("<li></li>").css({ "display": "none" });
                 //this.target = $("<div></div>").addClass("progress").append($("<div></div>").addClass("progress-bar").css({"width":"10%"})).css({ "display": "none" });
                 //将新建的<li>加入scoreBars中
-                if (targetBefore == undefined) targetBefore = $("#scoreBars > li").last();
+                var targetBefore = $("#scoreBars > li").last();
                 targetBefore.after(this.target);
             }
 
@@ -145,7 +264,11 @@
         //初始化
         var bars = new Array();
         var pointer = 0;
+        var groupPointer = 0;
         var barDisplay = new Array();
+        //数组的数组
+        var groupedSingers = new Array();
+        var singerRankList = new Array();
         const roundConst = [5];
         var isInserting = false;
         var $temp = $("<div></div>").html("@Newtonsoft.Json.JsonConvert.SerializeObject(Model.Singers)");
@@ -158,7 +281,6 @@
                 $("#blank").fadeOut();
             });
         });
-
         //li 柱形交换位置(indexA,indexB从1开始)
         function swap(indexA, indexB, callback) {
             //indexB必须大于indexA
@@ -206,34 +328,48 @@
             var ID = parseInt($("#ID").val());
             if (!isNaN(ID))
                 $("#ID").val(ID);
-            if (isNaN(ID) || ID > singers.length || ID < 1 || singers[ID - 1].Name == null) {
+            var singer = null;
+            singers.forEach(ele => {
+                if (ele.ID == ID)
+                    singer = ele;
+            });
+            if (isNaN(ID) || ID > singers.length || ID < 1 || singer == null) {
                 $("#ID").next().children().eq(0).text("名字");
                 $("#ID").css({ "border-color": "#ff0000" });
                 return false;
             }
             else {
                 $("#ID").css({ "border-color": "#d9d9d9" });
-                $("#ID").next().children().eq(0).text(singers[ID - 1].Name);
+
+                $("#ID").next().children().eq(0).text(singer.Name);
                 return true;
             }
         };
 
         $("#ID").keyup(e => {
-            switch (e.keyCode) {
-                //上
-                case 38:
-                case 104:
-                    var ID = parseInt($("#ID").val());
-                    if (!isNaN(ID))
-                        $("#ID").val((ID + 1 < singers.length)?(ID + 1):1);
-                    break;
-                //下
-                case 40:
-                case 98:
-                    var ID = parseInt($("#ID").val());
-                    if (!isNaN(ID))
-                        $("#ID").val((ID - 1 > 0) ? (ID - 1) : (singers.length));
-                    break;
+            var ID = parseInt($("#ID").val());
+            if (!isNaN(ID))
+                switch (e.keyCode) {
+                    //上
+                    case 38:
+                    case 104:
+                            $("#ID").val((ID + 1 <= singers.length)?(ID + 1):1);
+                        break;
+                    //下
+                    case 40:
+                    case 98:
+                            $("#ID").val((ID - 1 > 0) ? (ID - 1) : (singers.length));
+                        break;
+                }
+            var singer = null;
+            singers.forEach(ele => {
+                if (ele.ID == ID)
+                    singer = ele;
+            });
+            if (ID > 0 && ID < singers.length && singer != null) {
+                $("#score").val(singer.Scores[$("#round").val()]);
+                $("#sequence").val(singer.Sequence);
+                $("#groupId").val(singer.GroupId);
             }
             IDCheck();
         });
@@ -269,16 +405,13 @@
                             $("#form").find("input[name='StringScore']").val("");
                             $("#form").find("select[name='Round']").children().eq(0).attr({ "selected": "selected" });
                             $("#btn-refresh").click();
-                            console.log("success");
                         }
                         else {
-                            console.log("error:",data);
                             alert("更新失败");
                         }
                     },
                     complete: () => {
                         $("#form").data("isSubmitting", false);
-                        console.log("complete");
                     }
                 });
             }
@@ -297,6 +430,7 @@
                         singers = $.parseJSON(data);
                         singers.forEach(singer => {
                             $(`<th scope='row'>${singer.ID}</th>` +
+                                `<td>${singer.Sequence}</td>` +
                                 `<td>${singer.Name}</td>` +
                                 `<td>${singer.GroupId}</td>` +
                                 `<td>${singer.Scores[0]}</td>` +
@@ -329,14 +463,13 @@
         }
 
         function insertSinger(times) {
-            console.log(pointer);
             if (isInserting) return;
             //if (singer == null || singer == undefined) return;
             if (barDisplay.length + 1 >= roundConst[0]) return;
             var singer = getNextSinger();
             isInserting = true;
             lastIndex = (barDisplay.length < roundConst[0]) ? barDisplay.length : (roundConst[0] - 1);
-            bars[lastIndex] = new ScoreBar(singer.Name, singer.Scores[0]);
+            bars[lastIndex] = new ScoreBar(singer.Name, singer.Scores[0],singer.Sequence);
             //显示占位分数柱
             bars[lastIndex].showBar(() => {
                 //将循环的起始点设定为barDisplay的长度，即最后一行分数柱之后
@@ -363,27 +496,107 @@
                 cb(i);
             });
         }
-
+        //将传入歌手数组按groupid整理为四组，由高到低排列
+        function sortAndDivideSingers(singersList) {
+            var stack = new Array(4);
+            for (var i = 0; i < 4; i++) {
+                groupedSingers[i] = new Array();
+                stack[i] = 0;
+            }
+            var tempSortedSingers = JSON.parse(JSON.stringify(singersList));
+            for (var i = 0; i < tempSortedSingers.length; i++) {
+                var max = tempSortedSingers[i];
+                for (var n = i + 1; n < tempSortedSingers.length; n++)
+                    if (tempSortedSingers[n] != null && tempSortedSingers[n].Scores[0] + tempSortedSingers[n].Scores[1] > max.Scores[0] + max.Scores[1]) {
+                        max = tempSortedSingers[n];
+                    }
+                tempSortedSingers[tempSortedSingers.indexOf(max)] = tempSortedSingers[i];
+                tempSortedSingers[i] = max;
+            }
+            console.log(groupedSingers);
+            console.log("stack", stack);
+            tempSortedSingers.forEach(singer => {
+                groupedSingers[stack[singer.GroupId - 1]++].push(singer);
+            });
+            return groupedSingers;
+        }
         var roundkey = 0;
         //测试函数 Q键生成分数柱
         $(window).keydown(e => {
+            console.log("keycode:", e.keyCode);
             switch (e.keyCode) {
+                //Q
+                case 81:
+                    $("#scorebars").appendTo("#trash").fadeOut();
+                    $(".progress").find(".progress-bar").animate({ "width": "10%" },150);
+                    $(".progress").attr("data-label", "");
+                    sortAndDivideSingers(singers);
+                    break;
+                //D
+                case 68:
+                    sortAndDivideSingers(singers);
+                    $("#card-ranking").fadeIn(200);
+                    $("#vertical-score-bars").fadeIn(200, function () {
+                        var curSingers = new Array();
+                        for (var i = 0; i < 4; i++) {
+                            console.log("grouppointer", groupPointer);
+                            $(".progress").eq(i).attr("data-label", groupedSingers[groupPointer][i].Name);
+                            var score = groupedSingers[groupPointer][i].Scores[0];
+                            $(".progress").eq(i).find(".bg-primary").eq(0).data("i", i).animate({ "width": score / 2 + "%" }, score * 50 + 200, function () {
+                                var i = $(this).data("i");
+                                var score = groupedSingers[groupPointer][i].Scores[1];
+                                $(this).next().animate({ "width": score / 2 + "%" }, score * 50 + 200);
+                            });
+                            curSingers.push(groupedSingers[groupPointer][i]);
+                            curSingers.sort((a, b) => {
+                                return a.Scores[0] + a.Scores[1] > b.Scores[0] + b.Scores[1];
+                            });
+                        }
+                        curSingers.forEach(singer => {
+                            var inserted = false;
+                            singerRankList.forEach((rankSinger, index) => {
+                                if (!inserted && rankSinger.Scores[0] + rankSinger.Scores[1] < singer.Scores[0] + singer.Scores[1]) {
+                                    singerRankList.splice(index, 0, singer);
+                                    inserted = true;
+                                }
+                            });
+                            if (!inserted)
+                                singerRankList.push(singer);
+                        });
+                        $("#ranking-body").find("tr").remove();
+                        var i = 0
+                        while (i < 8) {
+                            if(i < singerRankList.length)
+                                var str = `<th scope='col'>${i + 1}</th><td scope='col'>${singerRankList[i].Name}</td>`;
+                            else
+                                var str = `<th scope='col'>${i + 1}</th><td scope='col'></td>`;
+                            if (i + 8 < singerRankList.length) {
+                                str += `<th scope='col'>${i + 9}</th><td scope='col'>${singerRankList[i + 8].Name}</td>`;
+                            }
+                            else {
+                                str +=`<th scope='col'>${i + 9}</th><td scope='col'></td>`;
+                            }
+                            $(str).appendTo($("<tr></tr>").appendTo("#ranking-body"));
+                            i++;
+                        }
+                        groupPointer++;
+                    });
+                    break;
+                //S
                 case 83:
-                    if (!isInserting) {
+                    if (!isInserting && pointer % 4 == 0) {
                         bars.forEach( bar => {
                             bar.target.fadeOut(100, function () {
                                 $(this).appendTo("#trash");
                             });
                         });
                         bars = new Array();
-                        //pointer = 0;
                         barDisplay = new Array();
                     }
                     break;
                 //W 使用第二轮视图并且出分
                 case 87:
-                    console.log(barDisplay);
-                    if (singers.length > barDisplay.length || singers.length == roundConst[0]) {
+                    if (pointer != 16 && singers.length > barDisplay.length || singers.length == roundConst[0]) {
                         insertSinger(4);
                     }
                     break;
