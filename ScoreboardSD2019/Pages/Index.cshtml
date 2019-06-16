@@ -39,6 +39,9 @@
     .progress-bar {
         transition: none;
     }
+    #card-ranking {
+        top:-20vh;
+    }
 </style>
 <div id="blank"></div>
 <ol id="scoreBars"><li style="display:none !important"></li></ol>
@@ -511,7 +514,7 @@
             for (var i = 0; i < tempSortedSingers.length; i++) {
                 var max = tempSortedSingers[i];
                 for (var n = i + 1; n < tempSortedSingers.length; n++)
-                    if (tempSortedSingers[n] != null && tempSortedSingers[n].Scores[0] + tempSortedSingers[n].Scores[1] > max.Scores[0] + max.Scores[1]) {
+                    if (tempSortedSingers[n] != null && tempSortedSingers[n].Scores[0] * 0.8 + tempSortedSingers[n].Scores[1] * 0.2 > max.Scores[0] * 0.8 + max.Scores[1] * 0.2) {
                         max = tempSortedSingers[n];
                     }
                 tempSortedSingers[tempSortedSingers.indexOf(max)] = tempSortedSingers[i];
@@ -547,21 +550,21 @@
                             groupPointer = 0;
                         for (var i = 0; i < 4; i++) {
                             $(".progress").eq(i).attr("data-label", groupedSingers[groupPointer][i].Name);
-                            var score = groupedSingers[groupPointer][i].Scores[0];
+                            var score = groupedSingers[groupPointer][i].Scores[0] * 0.8;
                             $(".progress").eq(i).find(".bg-primary").eq(0).data("i", i).animate({ "width": score / 2 + "%" }, score * 50 + 200, function () {
                                 var i = $(this).data("i");
-                                var score = groupedSingers[groupPointer-1][i].Scores[1];
+                                var score = groupedSingers[groupPointer-1][i].Scores[1] * 0.2;
                                 $(this).next().animate({ "width": score / 2 + "%" }, score * 50 + 200);
                             });
                             curSingers.push(groupedSingers[groupPointer][i]);
                             curSingers.sort((a, b) => {
-                                return a.Scores[0] + a.Scores[1] > b.Scores[0] + b.Scores[1];
+                                return a.Scores[0] * 0.8 + a.Scores[1] *0.2> b.Scores[0]*0.8 + b.Scores[1]*0.2;
                             });
                         }
                         curSingers.forEach(singer => {
                             var inserted = false;
                             singerRankList.forEach((rankSinger, index) => {
-                                if (!inserted && rankSinger.Scores[0] + rankSinger.Scores[1] < singer.Scores[0] + singer.Scores[1]) {
+                                if (!inserted && rankSinger.Scores[0] * 0.8 + rankSinger.Scores[1] * 0.2 < singer.Scores[0] * 0.8 + singer.Scores[1]* 0.2){
                                     singerRankList.splice(index, 0, singer);
                                     inserted = true;
                                 }
